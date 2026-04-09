@@ -1,6 +1,12 @@
 # 🏋️ AI Fitness Coach
 
-An AI-powered real-time fitness coach that detects and corrects your exercise posture using computer vision and deep learning. Built with MediaPipe, LSTM neural networks, TensorFlow, and OpenCV.
+An AI-powered real-time fitness coach...
+
+---
+
+## 🎬 Demo
+
+![App Demo](screenshots/demo.gif)
 
 ---
 
