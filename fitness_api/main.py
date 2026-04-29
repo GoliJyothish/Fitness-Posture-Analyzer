@@ -16,7 +16,9 @@ Fixes applied (per analysis MD):
 
 import sys
 import os
+os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
 import threading
+
 
 # Allow imports from project root (shared/)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
