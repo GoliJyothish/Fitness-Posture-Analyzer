@@ -1,12 +1,22 @@
-tensorflow==2.15.0
+# Core ML
+tensorflow==2.16.1
+keras==3.3.3
+
+# Computer vision
 mediapipe==0.10.14
-opencv-python==4.9.0.80
+opencv-python==4.10.0.84
+
+# Numerical
 numpy==1.26.4
+
+# GUI
 customtkinter==5.2.2
+pillow==10.4.0
+
+# Audio / Voice feedback
 pyttsx3==2.90
-sounddevice==0.4.6
-scikit-learn==1.4.2
-matplotlib==3.8.4
-pandas==2.2.2
-pillow==10.3.0
-tqdm==4.66.4
+
+# Data / training utilities
+scikit-learn==1.5.2
+pandas==2.2.3
+tqdm==4.66.5
