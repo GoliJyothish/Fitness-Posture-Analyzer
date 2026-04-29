@@ -14,9 +14,13 @@ Fixes applied (per analysis MD):
    and threshold drift between this file and the GUI.
 """
 
-import sys
 import os
-os.environ["MEDIAPIPE_DISABLE_GPU"] = "1"
+import sys
+
+# Fix: add project root to path so 'shared' module is found on Render
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from shared.utils import calculate_angle
 import threading
 
 
