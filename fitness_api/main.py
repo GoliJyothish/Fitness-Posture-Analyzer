@@ -16,10 +16,6 @@ Fixes applied (per analysis MD):
 
 import os
 import sys
-
-# Fix: add project root to path so 'shared' module is found on Render
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from shared.utils import calculate_angle
 import threading
 
