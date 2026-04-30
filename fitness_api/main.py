@@ -18,10 +18,8 @@ import os
 import sys
 from shared.utils import calculate_angle
 import threading
+from shared.utils import calculate_angle
 
-
-# Allow imports from project root (shared/)
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, File, UploadFile, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +47,17 @@ mp_pose = mp.solutions.pose
 # for concurrent FastAPI requests.
 _thread_local = threading.local()
 
+def calculate_angle(a, b, c):
+    import numpy as np
+    a = np.array(a[:2], dtype=float)
+    b = np.array(b[:2], dtype=float)
+    c = np.array(c[:2], dtype=float)
+    radians = (np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0]))
+    angle = float(np.abs(np.degrees(radians)))
+    if angle > 180.0:
+        angle = 360.0 - angle
+    return angle
+    
 def _get_pose():
     """Return a thread-local MediaPipe Pose instance, creating it if needed."""
     if not hasattr(_thread_local, "pose"):
