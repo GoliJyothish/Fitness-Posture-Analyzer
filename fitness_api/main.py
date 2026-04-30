@@ -10,16 +10,11 @@ Fixes applied (per analysis MD):
    ("Push-ups" → "Pushups", "Lat Pulldown" → "Lat Pulldown/Row").
 3. MediaPipe Pose object moved into threading.local() — the module-level
    singleton was not thread-safe for concurrent FastAPI requests.
-4. calculate_angle() imported from shared/utils.py — eliminates duplication
-   and threshold drift between this file and the GUI.
+4. calculate_angle() inlined directly — avoids Python path issues on Render.
 """
 
 import os
-import sys
-from shared.utils import calculate_angle
 import threading
-from shared.utils import calculate_angle
-
 
 from fastapi import FastAPI, File, UploadFile, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,7 +24,19 @@ import mediapipe as mp
 import numpy as np
 from uuid import uuid4
 
-from shared.utils import calculate_angle
+# Inlined from shared/utils.py — avoids Python path issues on Render
+def calculate_angle(a, b, c):
+    a = np.array(a[:2], dtype=float)
+    b = np.array(b[:2], dtype=float)
+    c = np.array(c[:2], dtype=float)
+    radians = (
+        np.arctan2(c[1] - b[1], c[0] - b[0])
+        - np.arctan2(a[1] - b[1], a[0] - b[0])
+    )
+    angle = float(np.abs(np.degrees(radians)))
+    if angle > 180.0:
+        angle = 360.0 - angle
+    return angle
 
 app = FastAPI(title="AI Fitness Coach API")
 
@@ -47,17 +54,6 @@ mp_pose = mp.solutions.pose
 # for concurrent FastAPI requests.
 _thread_local = threading.local()
 
-def calculate_angle(a, b, c):
-    import numpy as np
-    a = np.array(a[:2], dtype=float)
-    b = np.array(b[:2], dtype=float)
-    c = np.array(c[:2], dtype=float)
-    radians = (np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0]))
-    angle = float(np.abs(np.degrees(radians)))
-    if angle > 180.0:
-        angle = 360.0 - angle
-    return angle
-    
 def _get_pose():
     """Return a thread-local MediaPipe Pose instance, creating it if needed."""
     if not hasattr(_thread_local, "pose"):
