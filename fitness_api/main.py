@@ -158,15 +158,15 @@ async def analyze(
         left_angle  = calculate_angle(lm(L.LEFT_SHOULDER.value),  lm(L.LEFT_ELBOW.value),  lm(L.LEFT_WRIST.value))
         right_angle = calculate_angle(lm(L.RIGHT_SHOULDER.value), lm(L.RIGHT_ELBOW.value), lm(L.RIGHT_WRIST.value))
 
-        if left_angle > 150:
+        if left_angle > 140:
             counters[exercise]["left_stage"] = "down"
-        if left_angle < 50 and counters[exercise]["left_stage"] == "down":
+        if left_angle < 60 and counters[exercise]["left_stage"] == "down":
             counters[exercise]["left_stage"] = "up"
             counters[exercise]["left_count"] += 1
 
-        if right_angle > 150:
+        if right_angle > 140:
             counters[exercise]["right_stage"] = "down"
-        if right_angle < 50 and counters[exercise]["right_stage"] == "down":
+        if right_angle < 60 and counters[exercise]["right_stage"] == "down":
             counters[exercise]["right_stage"] = "up"
             counters[exercise]["right_count"] += 1
 
