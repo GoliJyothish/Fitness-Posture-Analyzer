@@ -249,14 +249,25 @@ async def analyze(
             feedback = "Release up!"
         form = "Good Form!" if angle < 100 else "Pull lower!"
 
-    response = JSONResponse(content={
-        "reps":      counters[exercise]["count"],
-        "left_reps": counters[exercise]["left_count"],
-        "right_reps": counters[exercise]["right_count"],
-        "form":      form,
-        "feedback":  feedback,
-        "angle":     round(angle, 1),
-    })
+        # Build landmarks list for skeleton overlay
+            landmark_data = []
+            if results.pose_landmarks:
+                for lm in results.pose_landmarks.landmark:
+                    landmark_data.append({
+                        "x": round(lm.x, 4),
+                        "y": round(lm.y, 4),
+                        "visibility": round(lm.visibility, 4),
+                    })
+
+            response = JSONResponse(content={
+                "reps":      counters[exercise]["count"],
+                "left_reps": counters[exercise]["left_count"],
+                "right_reps": counters[exercise]["right_count"],
+                "form":      form,
+                "feedback":  feedback,
+                "angle":     round(angle, 1),
+                "landmarks": landmark_data,
+            })
     # Always echo the session ID back so the client can reuse it
     response.headers["X-Session-Id"] = session_id
     return response
