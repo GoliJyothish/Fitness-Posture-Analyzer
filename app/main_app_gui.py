@@ -282,6 +282,9 @@ class App(ctk.CTk):
                 # Pose detection data
                 self.latest_frame_rgb = None
                 self.latest_detection_result = None
+                # FIX (alignment): monotonically increasing timestamp for synchronous
+                # VIDEO-mode detection, replacing the old async LIVE_STREAM timestamp counter
+                self.timestamp_ms = 0
                 self.feedback_text = ""
                 self.rep_count_left = 0
                 self.rep_count_right = 0
@@ -572,10 +575,18 @@ class App(ctk.CTk):
                         if inference_result["action"] == "feedback":
                             self.feedback_text = f"{self.feedback_text_rep} | Form: {inference_result['feedback']}"
 
+                # FIX (alignment): expose the callback as an instance method so
+                # _update_frame() can invoke it synchronously with a matched frame/result pair
+                self._process_pose_result = result_callback
+
+                # FIX (alignment): VIDEO mode is synchronous (detect_for_video blocks until
+                # done), so the landmarks returned always belong to the exact frame we pass
+                # in. LIVE_STREAM + detect_async() ran on a separate thread and could return
+                # results for an older frame than the one currently on screen, which is what
+                # caused the skeleton to visibly lag behind the body during fast movement.
                 options = PoseLandmarkerOptions(
                     base_options=BaseOptions(model_asset_path=MODEL_PATH),
-                    running_mode=VisionRunningMode.LIVE_STREAM,
-                    result_callback=result_callback
+                    running_mode=VisionRunningMode.VIDEO,
                 )
 
                 try:
@@ -585,20 +596,7 @@ class App(ctk.CTk):
                     self._end_session()
                     return
 
-                self.running_thread = threading.Thread(target=self._pose_detection_loop)
-                self.running_thread.daemon = True
-                self.running_thread.start()
-
                 self._update_frame()
-
-            def _pose_detection_loop(self):
-                timestamp_ms = 0
-                while not self.stop_event.is_set():
-                    if self.latest_frame_rgb is not None and self.pose_landmarker:
-                        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=self.latest_frame_rgb)
-                        self.pose_landmarker.detect_async(mp_image, timestamp_ms)
-                        timestamp_ms += 1
-                    time.sleep(0.02)
 
             def _update_frame(self):
                 if self.stop_event.is_set():
@@ -619,6 +617,18 @@ class App(ctk.CTk):
 
                 # 1. Capture RGB for MediaPipe (unflipped for accurate landmark coordinates)
                 self.latest_frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                # 1b. FIX (alignment): detect synchronously on THIS frame, not a background
+                #     thread's stale one. Guarantees the skeleton drawn below always matches
+                #     the body position in the frame currently on screen.
+                if self.pose_landmarker:
+                    self.timestamp_ms += 40
+                    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=self.latest_frame_rgb)
+                    try:
+                        result = self.pose_landmarker.detect_for_video(mp_image, self.timestamp_ms)
+                        self._process_pose_result(result, mp_image, self.timestamp_ms)
+                    except Exception as e:
+                        print(f"Pose detection error: {e}")
 
                 # 2. FIX (MD §3 + §5): Draw skeleton with OpenCV manual loop.
                 #    Replaces vision.drawing_utils.draw_landmarks which does not exist
