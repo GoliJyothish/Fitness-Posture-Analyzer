@@ -302,8 +302,8 @@ class App(ctk.CTk):
                 self.feedback_r = "..."
                 self.landmark_buffer = collections.deque(maxlen=SEQUENCE_LENGTH)
                 self.inference_counter = 0
-                self.angle_history_left = collections.deque(maxlen=5)
-                self.angle_history_right = collections.deque(maxlen=5)
+                self.angle_history_left = collections.deque(maxlen=3)
+                self.angle_history_right = collections.deque(maxlen=3)
 
                 # Voice feedback throttling state (MD §4)
                 self._last_spoken = ""
@@ -456,7 +456,12 @@ class App(ctk.CTk):
                         if self.selected_exercise != "Plank":
                             if self.selected_mode == "Home":
                                 if vis_l > VIS_THRESH and vis_r > VIS_THRESH:
-                                    angle = min(angle_l, angle_r)
+                                    # FIX (undercount): was min(angle_l, angle_r), which required
+                                    # BOTH limbs to independently cross the threshold. Natural
+                                    # camera-angle/body asymmetry meant the weaker side often
+                                    # never reached the threshold, silently dropping real reps.
+                                    # Averaging is more representative of overall body position.
+                                    angle = (angle_l + angle_r) / 2
                                     vis_combined = (vis_l + vis_r) / 2
                                 elif vis_l > VIS_THRESH:
                                     angle = angle_l
@@ -531,9 +536,13 @@ class App(ctk.CTk):
 
                                 self.feedback_text_rep = f"L: {self.feedback_l} | R: {self.feedback_r}"
                         else:  # Plank
+                            # FIX (undercount): was requiring angle_l AND angle_r each
+                            # independently above threshold — same asymmetry issue as
+                            # Squats/Lunges. Averaging avoids losing hold time to noise
+                            # on whichever side is momentarily less visible/aligned.
+                            plank_angle = (angle_l + angle_r) / 2
                             if (vis_l > VIS_THRESH and vis_r > VIS_THRESH
-                                    and angle_l > PLANK_THRESHOLD_ANGLE
-                                    and angle_r > PLANK_THRESHOLD_ANGLE):
+                                    and plank_angle > PLANK_THRESHOLD_ANGLE):
                                 if self.plank_start_time is None:
                                     self.plank_start_time = time.time()
                                 else:
