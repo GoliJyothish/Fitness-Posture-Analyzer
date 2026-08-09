@@ -1,7 +1,6 @@
 import cv2
 import mediapipe as mp
 import numpy as np
-import threading
 import pyttsx3
 import time
 import collections
@@ -11,6 +10,8 @@ import os
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import PoseLandmarkerResult, PoseLandmarker
+
+MODEL_PATH = "models/pose_landmarker_heavy.task"
 
 # A custom class to mimic MediaPipe's Connection object
 class Connection:
@@ -37,13 +38,23 @@ exercise = "Pushups"
 latest_detection_result = None
 
 
-def pose_detection_thread():
-    """Simplified detection thread for CLI."""
-    global latest_frame, latest_detection_result, feedback_text
-    while True:
-        if latest_frame is not None:
-            pass  # Placeholder for actual detection logic
-        time.sleep(0.01)
+def _init_pose_landmarker():
+    """Create a synchronous, VIDEO-mode pose landmarker.
+
+    FIX (bug): this file previously had NO landmarker initialized at all,
+    and pose_detection_thread() was an empty placeholder (`pass`) that
+    never set latest_detection_result. Skeleton overlay and rep counting
+    were completely non-functional in this CLI entry point. VIDEO mode is
+    used (rather than a background LIVE_STREAM thread) so detection is
+    always synchronous with the frame currently being displayed.
+    """
+    BaseOptions = python.BaseOptions
+    PoseLandmarkerOptions = vision.PoseLandmarkerOptions
+    options = PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=MODEL_PATH),
+        running_mode=vision.RunningMode.VIDEO,
+    )
+    return PoseLandmarker.create_from_options(options)
 
 
 def main_app():
@@ -121,9 +132,14 @@ def main_app():
             print("You might also try restarting your computer or checking device drivers.")
             return
 
-        detection_thread = threading.Thread(target=pose_detection_thread)
-        detection_thread.daemon = True
-        detection_thread.start()
+        try:
+            landmarker = _init_pose_landmarker()
+        except Exception as e:
+            print(f"Error initializing PoseLandmarker: {e}")
+            traceback.print_exc()
+            cap.release()
+            return
+        timestamp_ms = 0
 
         try:
             while cap.isOpened():
@@ -135,6 +151,16 @@ def main_app():
 
                 image = cv2.flip(image, 1)
                 latest_frame = image.copy()
+
+                # FIX: run detection synchronously on this exact frame (was
+                # previously never run at all — see _init_pose_landmarker).
+                rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                timestamp_ms += 33
+                try:
+                    latest_detection_result = landmarker.detect_for_video(mp_image, timestamp_ms)
+                except Exception as e:
+                    print(f"Pose detection error: {e}")
 
                 # Draw skeleton using OpenCV (manual loop — avoids vision.drawing_utils API issues)
                 if latest_detection_result and latest_detection_result.pose_landmarks:
@@ -179,9 +205,14 @@ def main_app():
 
         print(f"Processing video file: {video_path}")
 
-        detection_thread = threading.Thread(target=pose_detection_thread)
-        detection_thread.daemon = True
-        detection_thread.start()
+        try:
+            landmarker = _init_pose_landmarker()
+        except Exception as e:
+            print(f"Error initializing PoseLandmarker: {e}")
+            traceback.print_exc()
+            cap.release()
+            return
+        timestamp_ms = 0
 
         try:
             while cap.isOpened():
@@ -192,6 +223,16 @@ def main_app():
 
                 image = cv2.flip(image, 1)
                 latest_frame = image.copy()
+
+                # FIX: run detection synchronously on this exact frame (was
+                # previously never run at all — see _init_pose_landmarker).
+                rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+                timestamp_ms += 33
+                try:
+                    latest_detection_result = landmarker.detect_for_video(mp_image, timestamp_ms)
+                except Exception as e:
+                    print(f"Pose detection error: {e}")
 
                 # Draw skeleton using OpenCV (manual loop)
                 if latest_detection_result and latest_detection_result.pose_landmarks:
